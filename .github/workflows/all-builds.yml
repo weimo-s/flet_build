@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true # 缓存依赖，加速后续构建
 
