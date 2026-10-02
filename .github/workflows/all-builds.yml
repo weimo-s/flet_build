@@ -42,11 +42,19 @@ jobs:
           set -euo pipefail
           uv run flet build windows --yes \
             --build-version "${GITHUB_REF_NAME#v}" --build-number "$GITHUB_RUN_NUMBER"
-      - uses: actions/upload-artifact@v5
+
+      - name: Upload build artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v5
         with:
           name: MyApp-win-x64
           path: build/windows/MyApp-win-x64.zip
           if-no-files-found: error
+      # - uses: actions/upload-artifact@v5
+      #   with:
+      #       name: MyApp-win-x64
+      #       path: build/windows
+      #       if-no-files-found: error
 
       - name: Attach to Release
         if: startsWith(github.ref, 'refs/tags/')
