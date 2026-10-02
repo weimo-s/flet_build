@@ -69,7 +69,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: MyApp-win-x64
-          path: build/windows/MyApp-win-x64.zip
+          path: build/windows
           if-no-files-found: error
 
       - name: Attach to GitHub Release
