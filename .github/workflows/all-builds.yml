@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           uv run flet build windows --yes \
-            --build-version "${GITHUB_REF_NAME#v}"
+            --build-version "${GITHUB_REF_NAME#v}" \
             --build-number "$GITHUB_RUN_NUMBER"
       - uses: actions/upload-artifact@v5.0.0
         with:
