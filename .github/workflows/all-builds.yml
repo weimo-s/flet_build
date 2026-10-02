@@ -45,4 +45,9 @@ jobs:
           name: windows-build-artifact
           path: build/windows
           if-no-files-found: error
-  
+      
+      - name: Attach to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/Myapp-release-x64.zip
