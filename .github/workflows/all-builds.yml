@@ -82,5 +82,5 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/windows/MyApp-win-x64.zip
+          files: build/windows/*.zip
           generate_release_notes: true # 自动生成Release变更日志
