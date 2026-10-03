@@ -76,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           TAG_NAME="${GITHUB_REF#refs/tags/}"
-          ZIP_FILE="build/windows/MyApp-win-x64.zip"
+          ZIP_FILE="build/windows/*.zip"
 
           # 如果release不存在就新建；--generate-notes自动生成变更日志
           if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
