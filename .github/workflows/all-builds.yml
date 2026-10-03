@@ -1,19 +1,19 @@
-# .github/workflows/flet-build.yml
-name: Flet Build
+# .github/workflows/flet-build-ghcli.yml
+name: Flet Build GH-CLI
 on:
-  workflow_dispatch: # 手动触发，可自定义版本号/构建号
+  workflow_dispatch:
     inputs:
       build_version:
-        description: "版本号（留空优先读取pyproject.toml，tag触发自动取tag）"
+        description: "版本号（留空则用 pyproject.toml / git tag）"
         required: false
         default: ""
       build_number:
-        description: "构建号（留空默认使用GitHub Run Number）"
+        description: "构建号（留空则用 github run number）"
         required: false
         default: ""
   push:
     tags:
-      - "v*" # git push tag v0.1.0 自动触发打包发布
+      - "v*"
 
 env:
   UV_PYTHON: "3.13"
@@ -25,26 +25,21 @@ jobs:
     name: BuildWindows
     runs-on: windows-latest
     permissions:
-      contents: write # 必须，用来创建Release并上传附件
-      actions: read
+      contents: write
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
 
-      - name: Install dependencies
-        run: uv sync --locked
+      - run: uv sync --locked
 
-      - name: Build Flet Windows package
+      - name: Build Flet Windows
         shell: bash
         run: |
           set -euo pipefail
-
-          # 版本号优先级：手动输入 > tag名称(去掉v) > 留空交给flet自动读取pyproject
+          # 版本号优先级：手动输入 > tag > 空
           if [[ -n "${{ github.event.inputs.build_version }}" ]]; then
             VER="${{ github.event.inputs.build_version }}"
           elif [[ $GITHUB_REF == refs/tags/v* ]]; then
@@ -53,24 +48,18 @@ jobs:
             VER=""
           fi
 
-          # 构建号优先级：手动输入 > GITHUB_RUN_NUMBER
           if [[ -n "${{ github.event.inputs.build_number }}" ]]; then
             BNUM="${{ github.event.inputs.build_number }}"
           else
             BNUM="${GITHUB_RUN_NUMBER}"
           fi
 
-          # 组装flet build参数
           ARGS=("flet" "build" "windows" "--yes")
-          if [[ -n "$VER" ]]; then
-            ARGS+=("--build-version" "$VER")
-          fi
-          if [[ -n "$BNUM" ]]; then
-            ARGS+=("--build-number" "$BNUM")
-          fi
-
+          [[ -n "$VER" ]] && ARGS+=("--build-version" "$VER")
+          [[ -n "$BNUM" ]] && ARGS+=("--build-number" "$BNUM")
           uv run "${ARGS[@]}"
-      - name: Upload build artifact
+
+      - name: Upload workflow artifact
         if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v5
         with:
@@ -78,10 +67,23 @@ jobs:
           path: build/windows/MyApp-win-x64.zip
           if-no-files-found: error
 
-      - name: Release with just-release
+      # ========== 这里替换成 gh cli 原生命令创建Release并上传zip ==========
+      - name: Create Release & Upload Asset (gh cli)
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/just-release@v1
-        with:
-            tag: ${{ github.ref_name }}
         env:
-            GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          ZIP_FILE="build/windows/MyApp-win-x64.zip"
+
+          # 如果release不存在就新建；--generate-notes自动生成变更日志
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" \
+              --title "$TAG_NAME" \
+              --generate-notes
+          fi
+
+          # --clobber：覆盖已有同名资产（重新跑action不会报错）
+          gh release upload "$TAG_NAME" "$ZIP_FILE" --clobber
