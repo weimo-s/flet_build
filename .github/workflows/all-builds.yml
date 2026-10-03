@@ -1,5 +1,5 @@
-# .github/workflows/flet-build-ghcli.yml
-name: Flet Build GH-CLI
+# .github/workflows/flet-build.yml
+name: Flet Build
 on:
   workflow_dispatch:
     inputs:
@@ -21,11 +21,10 @@ env:
   FLET_CLI_NO_RICH_OUTPUT: "1"
 
 jobs:
-  windows:
-    name: BuildWindows
+  # ========== Job 1: 构建 Windows 包 ==========
+  build-windows:
+    name: Build Windows
     runs-on: windows-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -39,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # 版本号优先级：手动输入 > tag > 空
+
           if [[ -n "${{ github.event.inputs.build_version }}" ]]; then
             VER="${{ github.event.inputs.build_version }}"
           elif [[ $GITHUB_REF == refs/tags/v* ]]; then
@@ -59,10 +58,57 @@ jobs:
           [[ -n "$BNUM" ]] && ARGS+=("--build-number" "$BNUM")
           uv run "${ARGS[@]}"
 
-      - name: Upload workflow artifact
-        # if: startsWith(github.ref, 'refs/tags/')
+      # - name: List build output
+      #   shell: bash
+      #   run: ls -la build/windows/
+
+      # 关键：把 zip 上传为 workflow artifact
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v5
         with:
-          name: MyApp-win-x64
+          name: windows-package
           path: build/windows
           if-no-files-found: error
+          retention-days: 7
+
+  # ========== Job 2: 下载 artifact 并发布 Release ==========
+  release:
+    name: Release
+    needs: build-windows          # 必须等 build-windows 完成
+    runs-on: ubuntu-latest        # 用 Linux runner，快且便宜，只做下载+上传
+    if: startsWith(github.ref, 'refs/tags/')   # 只有 tag 推送才发布
+    permissions:
+      contents: write             # 创建 Release + 上传资产
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: windows-package
+          path: artifacts          # 下载到 ./artifacts/ 目录
+
+      # - name: List downloaded files
+      #   run: ls -la artifacts/
+
+      - name: Create Release & Upload zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG_NAME="${GITHUB_REF#refs/tags/v}"
+          ZIP_FILE=$(find artifacts -maxdepth 1 -name "*.zip" | head -n1)
+          echo "Uploading: $ZIP_FILE"
+
+          if [[ ! -f "$ZIP_FILE" ]]; then
+            echo "ERROR: zip not found in artifacts/"
+            exit 1
+          fi
+
+          # 创建 Release（已存在则跳过创建）
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" \
+              --title "$TAG_NAME" \
+              --generate-notes
+          fi
+
+          # 上传 zip 资产，--clobber 覆盖同名旧文件
+          gh release upload "$TAG_NAME" "$ZIP_FILE" --clobber
