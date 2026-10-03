@@ -26,6 +26,7 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write # 必须，用来创建Release并上传附件
+      actions: read
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -69,23 +70,18 @@ jobs:
           fi
 
           uv run "${ARGS[@]}"
-      - name: List build output
-        shell: bash
-        run: ls -la build/windows
-         cd build/windows
-         zip -r MyApp-win-x64.zip
-
       - name: Upload build artifact
         if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v5
         with:
           name: MyApp-win-x64
-          path: build/windows
+          path: build/windows/MyApp-win-x64.zip
           if-no-files-found: error
 
-      - name: Create Release & Attach zip
+      - name: Release with just-release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/just-release@v1
         with:
-          files: build/windows/*.zip
-          generate_release_notes: true # 自动生成Release变更日志
+            tag: ${{ github.ref_name }}
+        env:
+            GITHUB_TOKEN: ${{ github.token }}
