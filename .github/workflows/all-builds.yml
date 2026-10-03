@@ -70,7 +70,7 @@ jobs:
 
           # === 新增：手动打包成 zip（runner本地文件，gh-release可以读取）===
           APP_NAME="MyApp"
-          ZIP_NAME="${APP_NAME}-win-x64-v${VERSION}.zip"
+          ZIP_NAME="${APP_NAME}-win-x64.zip"
           cd build/windows
           7z a "../../${ZIP_NAME}" .
           cd ../..
@@ -91,11 +91,11 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
-          files: "${APP_NAME}-win-x64-v${VERSION}.zip"
+          files: *.zip
           overwrite_files: true # 覆盖同名文件
-          # name: Release v${{ env.VERSION }}
-          # body: |
-          #   ## Build Info
-          #   - Version: `${{ env.VERSION }}`
-          #   - Build Number: `${{ env.BUILD_NUMBER }}`
-          #   - CI Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          name: Release v${{ env.VERSION }}
+          body: |
+            ## Build Info
+            - Version: `${{ env.VERSION }}`
+            - Build Number: `${{ env.BUILD_NUMBER }}`
+            - CI Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
