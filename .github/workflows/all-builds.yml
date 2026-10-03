@@ -60,11 +60,11 @@ jobs:
           uv run "${ARGS[@]}"
 
       - name: Upload workflow artifact
-        if: startsWith(github.ref, 'refs/tags/')
+        # if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v5
         with:
           name: MyApp-win-x64
-          path: build/windows/MyApp-win-x64.zip
+          path: build/windows
           if-no-files-found: error
 
       # ========== 这里替换成 gh cli 原生命令创建Release并上传zip ==========
