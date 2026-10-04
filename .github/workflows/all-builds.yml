@@ -75,7 +75,7 @@ jobs:
 
       # 3. tag触发时，把本地生成的zip上传到Release
       - name: Create Release & Attach zip
-        # if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: build/windows/windows-build.zip
