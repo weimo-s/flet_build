@@ -57,58 +57,28 @@ jobs:
           [[ -n "$VER" ]] && ARGS+=("--build-version" "$VER")
           [[ -n "$BNUM" ]] && ARGS+=("--build-number" "$BNUM")
           uv run "${ARGS[@]}"
+          
+      # 1. Flet build 完成后，本地生成zip包（给Release用）
+      - name: Zip build folder for Release
+        shell: bash
+        run: |
+          cd build/windows
+          zip -r MyApp-win-x64.zip .
 
-      # - name: List build output
-      #   shell: bash
-      #   run: ls -la build/windows/
-
-      # 关键：把 zip 上传为 workflow artifact
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v5
+      # 2. 上传整个目录作为CI工件（你现在这段不变）
+      - uses: actions/upload-artifact@v5.0.0
         with:
-          name: windows-package
+          name: windows-build-artifact
           path: build/windows
           if-no-files-found: error
-          retention-days: 7
 
-  # ========== Job 2: 下载 artifact 并发布 Release ==========
-  release:
-    name: Release
-    needs: build-windows          # 必须等 build-windows 完成
-    runs-on: ubuntu-latest        # 用 Linux runner，快且便宜，只做下载+上传
-    if: startsWith(github.ref, 'refs/tags/')   # 只有 tag 推送才发布
-    permissions:
-      contents: write             # 创建 Release + 上传资产
-    steps:
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v5
+      # 3. tag触发时，把本地生成的zip上传到Release
+      - name: Create Release & Attach zip
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
         with:
-          name: windows-package
-          path: artifacts          # 下载到 ./artifacts/ 目录
+          files: build/windows/MyApp-win-x64.zip
+          generate_release_notes: true
+    
 
-      # - name: List downloaded files
-      #   run: ls -la artifacts/
 
-      - name: Create Release & Upload zip
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          TAG_NAME="${GITHUB_REF#refs/tags/v}"
-          ZIP_FILE=$(find artifacts -maxdepth 1 -name "*.zip" | head -n1)
-          echo "Uploading: $ZIP_FILE"
-
-          if [[ ! -f "$ZIP_FILE" ]]; then
-            echo "ERROR: zip not found in artifacts/"
-            exit 1
-          fi
-
-          # 创建 Release（已存在则跳过创建）
-          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release create "$TAG_NAME" \
-              --title "$TAG_NAME" \
-              --generate-notes
-          fi
-
-          # 上传 zip 资产，--clobber 覆盖同名旧文件
-          gh release upload "$TAG_NAME" "$ZIP_FILE" --clobber
