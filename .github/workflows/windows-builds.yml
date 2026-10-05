@@ -59,7 +59,7 @@ jobs:
           VERSION=$(cat .build_version.txt)
           ZIP_NAME="flet-windows-v${VERSION}.zip"
           cd build/windows
-          zip -r "../../${ZIP_NAME}" .
+          7z a -r "../../${ZIP_NAME}" .
           cd -
           echo "ZIP_FILE=${ZIP_NAME}" >> $GITHUB_ENV
 
